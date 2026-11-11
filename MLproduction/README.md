@@ -273,7 +273,10 @@ Percentile --- Category
 Export production-ready results workbook.
 
 ### Features
-Green → Yellow → Red scales
+Excel allows 1,048,576 rows per sheet. Larger results are split into sheets Data, Data_2, Data_3, ...
+The GeoPackage generator and Correlations read all of them.
+
+Green → Yellow → Red scales use the min / median / max of the whole dataset, so colours are comparable across sheets.
 
 Colour-coded formatting is applied to: 
 - Ride-values
