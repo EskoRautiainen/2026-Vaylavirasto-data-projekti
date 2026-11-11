@@ -86,28 +86,26 @@ def _resolve_feature_columns(dataframe: pd.DataFrame) -> dict[str, str]:
 # ----------------------------------------------------------------------------------------------------
 #   FIND CORRECT SHEET IN EXCEL
 # ----------------------------------------------------------------------------------------------------
-def _read_matching_sheet(file_path: Path) -> tuple[pd.DataFrame, str, int]:
+def _read_matching_sheets(file_path: Path) -> list[tuple[pd.DataFrame, str, int]]:
     with pd.ExcelFile(file_path) as excel_file:             # Open file without loading all data
         sheet_names = excel_file.sheet_names                # Get sheet names
 
     # Process every worksheet and detect required columns dynamically.
     # Do not rely on worksheet names because source files may vary.
+    matches: list[tuple[pd.DataFrame, str, int]] = []
     for sheet_name in sheet_names:
         for header_row in (0, 1):                           # Try different header positions
             dataframe = pd.read_excel(file_path, sheet_name=sheet_name, header=header_row) # Load sheets into DataFrame
             if dataframe.empty:
                 continue
-            resolved = _resolve_feature_columns(dataframe)
-            if resolved:
-                renamed_dataframe = dataframe.rename(columns={
-                    resolved["pys_kiiht"]: "pys_kiiht",
-                    resolved["siv_kiiht"]: "siv_kiiht",
-                    resolved["nyo_kiiht"]: "nyo_kiiht",
-                    resolved["yhd_kiiht"]: "yhd_kiiht",
-                    resolved["pituus"]: "pituus",
-                })
+            if _resolve_feature_columns(dataframe):
+                # Normalize every column name (not just the features) so metadata columns like 'TIE ' match too
+                dataframe = dataframe.rename(columns=lambda c: c.strip().lower() if isinstance(c, str) else c)
+                matches.append((dataframe, sheet_name, header_row))
+                break                                       # Header found, go to next sheet
 
-                return renamed_dataframe, sheet_name, header_row
+    if matches:
+        return matches
 
     raise ValueError(
         f"No worksheet with required columns found in file: {file_path.name}. "
@@ -146,17 +144,17 @@ def step_01_load_data(file_path: Path) -> pd.DataFrame:
     total_rows_picked = 0
 
     for excel_file in excel_files:
-        source_dataframe, sheet_name, _ = _read_matching_sheet(excel_file)
-        filtered_source = _filter_pituus(source_dataframe)
-        rows_picked = len(filtered_source)
-        total_rows_picked += rows_picked
+        for source_dataframe, sheet_name, _ in _read_matching_sheets(excel_file):
+            filtered_source = _filter_pituus(source_dataframe)
+            rows_picked = len(filtered_source)
+            total_rows_picked += rows_picked
 
-        print(
-            f"{excel_file.name} | sheet name: {sheet_name} | rows_picked: {rows_picked}"
-        )
+            print(
+                f"{excel_file.name} | sheet name: {sheet_name} | rows_picked: {rows_picked}"
+            )
 
-        if rows_picked > 0:
-            filtered_frames.append(filtered_source)
+            if rows_picked > 0:
+                filtered_frames.append(filtered_source)
 
     if not filtered_frames:
         raise ValueError(
