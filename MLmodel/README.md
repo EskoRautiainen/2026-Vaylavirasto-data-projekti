@@ -61,10 +61,14 @@ Criteria metadata is written to:
 
 Implementation: `MLmodel/src/model_training.py`
 
-- Distance: squared Mahalanobis in scaled feature space
+- Distance: sum of squared upward deviations in scaled feature space (`shared/baseline_model.py`)
+  - features are in IQR units from the good-road median (RobustScaler), so each feature weighs the same
+  - a road that is rougher on any feature always scores worse
 - Deviation handling: upward-only (`clip(x, 0, +inf)`)
 - Threshold quantile: `0.99`
-- Covariance regularization: `1e-6`
+- Earlier versions used a Mahalanobis distance. `siv_kiiht` has zero spread among good roads,
+  so its covariance regularization (`1e-6`) became a weight of 1,000,000 and lateral acceleration
+  dominated the score. Models trained before this change must be retrained.
 
 Scoring outputs:
 - `anomaly_prediction`: `-1` anomaly, `1` normal
