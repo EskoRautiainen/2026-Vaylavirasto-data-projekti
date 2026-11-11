@@ -21,9 +21,18 @@ PRIORITY_MAP = {
 }
 PRIORITY_LABELS = ["Poor", "Critical"]
 MISMATCH_Q = 0.10
+EXCEL_MAX_DATA_ROWS = 1_048_575  # Excel's sheet limit is 1,048,576 rows, one of which is the header
+GRADIENT_COLUMNS = [
+    "pys_kiiht_raw",
+    "siv_kiiht_raw",
+    "nyo_kiiht_raw",
+    "anomaly_score",
+]
 
 
-def _apply_data_sheet_formatting(worksheet, data_columns: list[str], max_row: int) -> None:
+def _apply_data_sheet_formatting(
+    worksheet, data_columns: list[str], max_row: int, scales: dict[str, tuple[float, float, float]]
+) -> None:
     if max_row < 2:
         return
 
@@ -34,25 +43,23 @@ def _apply_data_sheet_formatting(worksheet, data_columns: list[str], max_row: in
     worksheet.freeze_panes = "E2"
     worksheet.auto_filter.ref = f"A1:{get_column_letter(len(data_columns))}{max_row}"
 
-    color_scale = ColorScaleRule(
-        start_type="min",
-        start_color="63BE7B",
-        mid_type="percentile",
-        mid_value=50,
-        mid_color="FFEB84",
-        end_type="max",
-        end_color="F8696B",
-    )
-    gradient_columns = [
-        "pys_kiiht_raw",
-        "siv_kiiht_raw",
-        "nyo_kiiht_raw",
-        "anomaly_score",
-    ]
     col_index = {name: idx + 1 for idx, name in enumerate(data_columns)}
-    for column_name in gradient_columns:
+    for column_name, (low, mid, high) in scales.items():
         if column_name not in col_index:
             continue
+        # Fixed values from the whole dataset (not Excel's per-sheet min/percentile/max),
+        # so colours mean the same on every Data sheet.
+        color_scale = ColorScaleRule(
+            start_type="num",
+            start_value=low,
+            start_color="63BE7B",
+            mid_type="num",
+            mid_value=mid,
+            mid_color="FFEB84",
+            end_type="num",
+            end_value=high,
+            end_color="F8696B",
+        )
         col_letter = get_column_letter(col_index[column_name])
         worksheet.conditional_formatting.add(
             f"{col_letter}2:{col_letter}{max_row}",
@@ -130,9 +137,21 @@ def _write_excel_results(results: pd.DataFrame, results_path: Path) -> None:
 
     correlations, category_summary, top_worst = _build_qa_summary(data_export)
 
+    scales = {}
+    for column_name in GRADIENT_COLUMNS:
+        if column_name in data_export.columns and data_export[column_name].notna().any():
+            values = data_export[column_name]
+            scales[column_name] = (float(values.min()), float(values.median()), float(values.max()))
+
     results_path.parent.mkdir(exist_ok=True)
     with pd.ExcelWriter(results_path, engine="openpyxl") as writer:
-        data_export.to_excel(writer, sheet_name="Data", index=False)
+        # A sheet holds at most EXCEL_MAX_DATA_ROWS rows: split the data into Data, Data_2, Data_3, ...
+        data_sheets: list[tuple[str, int]] = []
+        for sheet_number, start in enumerate(range(0, len(data_export), EXCEL_MAX_DATA_ROWS), start=1):
+            chunk = data_export.iloc[start:start + EXCEL_MAX_DATA_ROWS]
+            sheet_name = "Data" if sheet_number == 1 else f"Data_{sheet_number}"
+            chunk.to_excel(writer, sheet_name=sheet_name, index=False)
+            data_sheets.append((sheet_name, len(chunk)))
 
         start_row = 0
         correlations.to_excel(writer, sheet_name="QA_summary", index=False, startrow=start_row)
@@ -141,10 +160,11 @@ def _write_excel_results(results: pd.DataFrame, results_path: Path) -> None:
         start_row += len(category_summary) + 3
         top_worst.to_excel(writer, sheet_name="QA_summary", index=False, startrow=start_row)
 
-        ws_data = writer.sheets["Data"]
+        for sheet_name, rows in data_sheets:
+            _apply_data_sheet_formatting(
+                writer.sheets[sheet_name], list(data_export.columns), rows + 1, scales
+            )
         ws_qa = writer.sheets["QA_summary"]
-        max_row = len(data_export) + 1
-        _apply_data_sheet_formatting(ws_data, list(data_export.columns), max_row)
         ws_qa.freeze_panes = "A2"
         for cell in ws_qa[1]:
             cell.font = Font(bold=True)

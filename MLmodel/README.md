@@ -85,9 +85,9 @@ All artifacts are written to `MLmodel/MLfiles`:
 
 `anomaly_results.xlsx` contains:
 
-- `Data` sheet:
+- `Data` sheet (split into `Data`, `Data_2`, ... when over Excel's 1,048,576-row sheet limit):
   - rows sorted by `anomaly_score` descending
-  - conditional formatting for raw accelerations and anomaly score
+  - conditional formatting for raw accelerations and anomaly score (scale from the whole dataset, same on every sheet)
   - `mismatch_flag` highlight
   - filters and freeze panes
 - `QA_summary` sheet:
