@@ -1,5 +1,6 @@
+import argparse
 from pathlib import Path
-from MLproduction.src.data_loading                      import step_01_load_data
+from MLproduction.src.data_loading                     import step_01_load_data
 from MLproduction.src.data_cleaning                     import step_02_clean_data
 from MLproduction.src.feature_engineering               import step_03_engineer_features
 from MLproduction.src.load_model_and_start_production   import step_04_load_artifacts
@@ -42,7 +43,7 @@ selected_features = [
 # ----------------------------------------------------------------------------------------------------
 #   MAIN PIPELINE
 # ----------------------------------------------------------------------------------------------------
-def run_pipeline():
+def run_pipeline(input_path: Path = file_path):
     """
     Executes the full ML production pipeline:
     1. Load raw data
@@ -60,7 +61,7 @@ def run_pipeline():
     print()
     print("=== Production Pipeline Started ===")
     try:
-        df = step_01_load_data(file_path)
+        df = step_01_load_data(input_path)
     except Exception as e:
         raise RuntimeError(f"Data loading failed: {e}") from e
     metadata = df[selected_features].copy() # Store only selected features
@@ -134,4 +135,13 @@ def run_pipeline():
 #   ENTRY POINT
 # ----------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    run_pipeline()
+    parser = argparse.ArgumentParser(description="Run the ML production pipeline.")
+    parser.add_argument(
+        "input_path",
+        nargs="?",
+        type=Path,
+        default=file_path,
+        help="Folder of Excel files or a single Excel file, relative to the repository root (default: SourceData).",
+    )
+    args = parser.parse_args()
+    run_pipeline(REPO_ROOT / args.input_path)
