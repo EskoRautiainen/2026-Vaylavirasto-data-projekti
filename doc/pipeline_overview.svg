@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 760" width="1240" height="760" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Väylävirasto road condition analysis: pipeline overview</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3F4650"/>
+    </marker>
+    <style>
+      .flow { fill: none; stroke: #3F4650; stroke-width: 2; marker-end: url(#arrow); }
+      .import { fill: none; stroke: #6B7280; stroke-width: 1.6; stroke-dasharray: 5 4; marker-end: url(#arrow); }
+      .label { font-size: 11.5px; fill: #4B5563; }
+      .tag { font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; fill: #6B7280; }
+      .mono { font-family: Consolas, "Courier New", monospace; }
+      .title { font-size: 16px; font-weight: 700; fill: #111827; }
+      .body { font-size: 13px; fill: #1F2937; }
+      .cmd { font-family: Consolas, "Courier New", monospace; font-size: 11.5px; fill: #374151; }
+      .badge-text { font-size: 13px; font-weight: 700; fill: #FFFFFF; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1240" height="760" fill="#FFFFFF"/>
+
+  <!-- Heading -->
+  <text x="40" y="44" font-size="22" font-weight="700" fill="#111827">Väylävirasto road condition analysis</text>
+  <text x="40" y="68" font-size="13" fill="#6B7280">How the training, production, GeoPackage and correlation tools pass data to each other</text>
+
+  <!-- Legend -->
+  <line x1="880" y1="56" x2="922" y2="56" class="flow"/>
+  <text x="930" y="60" class="label">data flow</text>
+  <line x1="1010" y1="56" x2="1052" y2="56" class="import"/>
+  <text x="1060" y="60" class="label">shared code (imported)</text>
+
+  <!-- ===== Inputs ===== -->
+  <rect x="40" y="300" width="200" height="110" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="56" y="322" class="tag">INPUT</text>
+  <text x="56" y="345" class="mono" font-size="14" font-weight="700" fill="#111827">SourceData/</text>
+  <text x="56" y="368" class="body">Road measurement Excel</text>
+  <text x="56" y="388" class="body">files (tiet-*.xlsx)</text>
+
+  <rect x="40" y="630" width="200" height="100" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="56" y="652" class="tag">INPUT</text>
+  <text x="56" y="675" class="mono" font-size="14" font-weight="700" fill="#111827">Data/Digiroad/</text>
+  <text x="56" y="698" class="body">Digiroad GeoPackage</text>
+  <text x="56" y="717" class="body">(DR_LINKKI road links)</text>
+
+  <!-- ===== 1 Training ===== -->
+  <rect x="300" y="100" width="330" height="190" rx="10" fill="#EAF2FB" stroke="#2F6DB5" stroke-width="1.8"/>
+  <circle cx="324" cy="126" r="13" fill="#2F6DB5"/>
+  <text x="324" y="131" text-anchor="middle" class="badge-text">1</text>
+  <text x="346" y="132" class="title">Training pipeline</text>
+  <text x="316" y="156" class="cmd">python MLmodel/ml_pipeline.py</text>
+  <text x="316" y="186" class="body">• Load + clean road measurements</text>
+  <text x="316" y="208" class="body">• Features: pys, siv, nyo_kiiht</text>
+  <text x="316" y="230" class="body">• Good-road filter → RobustScaler</text>
+  <text x="316" y="252" class="body">• Fit baseline distance model</text>
+  <text x="316" y="274" class="body">• Write QA report of all roads</text>
+
+  <!-- ===== shared ===== -->
+  <rect x="340" y="318" width="250" height="56" rx="8" fill="#FFFFFF" stroke="#6B7280" stroke-width="1.4" stroke-dasharray="5 4"/>
+  <text x="465" y="340" text-anchor="middle" class="mono" font-size="13" font-weight="700" fill="#111827">shared/</text>
+  <text x="465" y="361" text-anchor="middle" class="mono" font-size="11.5" fill="#374151">baseline_model.py · categories.py</text>
+  <path d="M465,318 V294" class="import"/>
+  <path d="M465,374 V396" class="import"/>
+
+  <!-- ===== 2 Production ===== -->
+  <rect x="300" y="400" width="330" height="180" rx="10" fill="#EAF2FB" stroke="#2F6DB5" stroke-width="1.8"/>
+  <circle cx="324" cy="426" r="13" fill="#2F6DB5"/>
+  <text x="324" y="431" text-anchor="middle" class="badge-text">2</text>
+  <text x="346" y="432" class="title">Production pipeline</text>
+  <text x="316" y="456" class="cmd">python -m MLproduction.production_pipeline</text>
+  <text x="316" y="486" class="body">• Load + clean new measurements</text>
+  <text x="316" y="508" class="body">• Score with trained scaler + model</text>
+  <text x="316" y="530" class="body">• Categories: Critical 4 % … Excellent 20 %</text>
+  <text x="316" y="552" class="body">• Colour-coded Excel (splits past 1,048,576 rows)</text>
+
+  <!-- ===== Artifacts ===== -->
+  <rect x="700" y="100" width="230" height="190" rx="10" fill="#FFF6E0" stroke="#C98A12" stroke-width="1.6"/>
+  <text x="716" y="122" class="tag">MODEL ARTIFACTS</text>
+  <text x="716" y="145" class="mono" font-size="14" font-weight="700" fill="#111827">MLmodel/MLfiles/</text>
+  <text x="716" y="170" class="mono" font-size="12" fill="#1F2937">scaler.pkl</text>
+  <text x="716" y="192" class="mono" font-size="12" fill="#1F2937">anomaly_model.pkl</text>
+  <text x="716" y="214" class="mono" font-size="12" fill="#1F2937">baseline_criteria.json</text>
+  <text x="716" y="236" class="mono" font-size="12" fill="#1F2937">feature_metadata.json</text>
+  <text x="716" y="258" class="mono" font-size="12" fill="#1F2937">anomaly_results.xlsx</text>
+  <text x="716" y="276" font-size="11" fill="#6B7280">(QA report)</text>
+
+  <!-- ===== Production results ===== -->
+  <rect x="700" y="460" width="230" height="110" rx="10" fill="#E8F5EC" stroke="#2E8B57" stroke-width="1.6"/>
+  <text x="716" y="482" class="tag">OUTPUT</text>
+  <text x="716" y="505" class="mono" font-size="12.5" font-weight="700" fill="#111827">output/production_</text>
+  <text x="716" y="523" class="mono" font-size="12.5" font-weight="700" fill="#111827">results_coloured.xlsx</text>
+  <text x="716" y="549" class="body">Score + category per 10 m</text>
+
+  <!-- ===== 3 Correlations ===== -->
+  <rect x="980" y="300" width="220" height="170" rx="10" fill="#F1ECFA" stroke="#6A4FB3" stroke-width="1.8"/>
+  <circle cx="1004" cy="326" r="13" fill="#6A4FB3"/>
+  <text x="1004" y="331" text-anchor="middle" class="badge-text">3</text>
+  <text x="1026" y="332" class="title">Correlations</text>
+  <text x="996" y="356" class="cmd">python Correlations/</text>
+  <text x="996" y="372" class="cmd">correlation_analysis.py</text>
+  <text x="996" y="398" class="body">Pearson: yhd_kiiht vs</text>
+  <text x="996" y="417" class="body">ura_max, harjanne_ka,</text>
+  <text x="996" y="436" class="body">rms_mega_oik, delta,</text>
+  <text x="996" y="455" class="body">tl332_paapak → console</text>
+
+  <!-- ===== 4 GeoPackage generator ===== -->
+  <rect x="980" y="540" width="220" height="190" rx="10" fill="#F1ECFA" stroke="#6A4FB3" stroke-width="1.8"/>
+  <circle cx="1004" cy="566" r="13" fill="#6A4FB3"/>
+  <text x="1004" y="571" text-anchor="middle" class="badge-text">4</text>
+  <text x="1026" y="572" class="title" style="font-size:14px">GeoPackage generator</text>
+  <text x="996" y="596" class="cmd">jupyter notebook → Run all</text>
+  <text x="996" y="622" class="body">• Match results to road links</text>
+  <text x="996" y="643" class="body">• Cut 10 m segments on map</text>
+  <rect x="992" y="658" width="196" height="58" rx="7" fill="#E8F5EC" stroke="#2E8B57" stroke-width="1.4"/>
+  <text x="1002" y="677" class="mono" font-size="11.5" font-weight="700" fill="#111827">output/road_condition</text>
+  <text x="1002" y="693" class="mono" font-size="11.5" font-weight="700" fill="#111827">_10m.gpkg</text>
+  <text x="1002" y="709" font-size="11" fill="#374151">→ open in QGIS</text>
+
+  <!-- ===== Arrows ===== -->
+  <!-- SourceData -> Training / Production -->
+  <path d="M240,335 H265 V195 H296" class="flow"/>
+  <path d="M240,375 H285 V490 H296" class="flow"/>
+
+  <!-- Training -> artifacts -->
+  <path d="M630,195 H696" class="flow"/>
+  <text x="640" y="187" class="label">writes</text>
+
+  <!-- Artifacts -> Production -->
+  <path d="M760,290 V440 H634" class="flow"/>
+  <text x="770" y="364" class="label">loads scaler.pkl +</text>
+  <text x="770" y="380" class="label">anomaly_model.pkl</text>
+
+  <!-- Production -> results -->
+  <path d="M630,515 H696" class="flow"/>
+  <text x="640" y="507" class="label">writes</text>
+
+  <!-- Results -> Correlations / GeoPackage generator -->
+  <path d="M930,495 H955 V385 H976" class="flow"/>
+  <path d="M930,535 H955 V610 H976" class="flow"/>
+
+  <!-- Digiroad -> GeoPackage generator -->
+  <path d="M240,690 H976" class="flow"/>
+  <text x="600" y="682" text-anchor="middle" class="label">road link geometry + road addresses</text>
+</svg>

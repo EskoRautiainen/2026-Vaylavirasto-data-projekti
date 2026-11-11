@@ -10,6 +10,8 @@ MLproduction: runs inference on new road measurement data and produces scored re
 GeoPackage generator: merges the processed results with Digiroad geospatial data and produces a GeoPackage file for map-based visualization (e.g. QGIS), enabling spatial analysis of road condition anomalies.
 Correlation analysis: Use Pearson correlation to calculate correlations between yhd_kiiht and other road metadata.
 
+![Pipeline overview: how training, production, the GeoPackage generator and correlation analysis pass data to each other](doc/pipeline_overview.svg)
+
 The project was developed as part of a data and AI project course at Tampere University of Applied Sciences (https://www.tuni.fi/fi/tutustu-meihin/tamk).
 
 ## Usage
