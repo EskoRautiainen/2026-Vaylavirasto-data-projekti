@@ -5,6 +5,7 @@ import pandas as pd
 # CONFIG
 # --------------------------------------------------
 DATA_DIR = Path(__file__).resolve().parent.parent / "output"
+RESULTS_FILE = DATA_DIR / "production_results_coloured.xlsx"  # written by MLproduction
 
 FEATURES = [
     "ura_max",
@@ -36,17 +37,13 @@ print()
 # LOAD FILE
 # --------------------------------------------------
 def load_data():
-    # Finds all Excel files
-    files = list(DATA_DIR.glob("*.xls*"))
+    if not RESULTS_FILE.exists():
+        raise FileNotFoundError(f"{RESULTS_FILE} not found. Run MLproduction first.")
 
-    if not files:
-        raise FileNotFoundError(f"No Excel files found in {DATA_DIR}")
-
-    file_path = files[0]
-    print(f"\nReading file: {file_path.name}")
+    print(f"\nReading file: {RESULTS_FILE.name}")
 
     # Load Excel into a pandas dataframe
-    return pd.read_excel(file_path)
+    return pd.read_excel(RESULTS_FILE)
 
 
 # --------------------------------------------------
