@@ -95,7 +95,10 @@ def _read_matching_sheets(file_path: Path) -> list[tuple[pd.DataFrame, str, int]
     matches: list[tuple[pd.DataFrame, str, int]] = []
     for sheet_name in sheet_names:
         for header_row in (0, 1):                           # Try different header positions
-            dataframe = pd.read_excel(file_path, sheet_name=sheet_name, header=header_row) # Load sheets into DataFrame
+            try:
+                dataframe = pd.read_excel(file_path, sheet_name=sheet_name, header=header_row) # Load sheets into DataFrame
+            except ValueError:                              # e.g. one-row 'Query' sheet has no row 2 for header=1
+                continue
             if dataframe.empty:
                 continue
             if _resolve_feature_columns(dataframe):
