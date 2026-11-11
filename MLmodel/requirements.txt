@@ -3,3 +3,4 @@ openpyxl
 scikit-learn
 numpy
 joblib
+xlsxwriter
