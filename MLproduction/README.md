@@ -233,7 +233,7 @@ scaled = scaler.transform(features)
 ```text
 Field                   Description
 predictions             1 = normal, -1 = anomaly
-scores                  anomaly confidence score
+scores                  normality score (decision_function: larger = more normal)
 ```
 
 ### Console feedback
@@ -252,7 +252,7 @@ Combine metadata, ML outputs, and prioritization.
 ```text
 Column                      Description
 anomaly_prediction	        Raw model output
-anomaly_score	            Rounded anomaly score
+anomaly_score	            Rounded anomaly score, larger = worse road (same as training)
 anomaly_type	            Normal / Anomaly
 anomaly_category	        Priority category
 priority_score	            Numeric urgency

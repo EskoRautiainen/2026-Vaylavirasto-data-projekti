@@ -24,7 +24,7 @@ def step_06_build_results(metadata, features, predictions, scores):
     result = result.join(features)
 
     result['anomaly_prediction'] = predictions
-    result['anomaly_score'] = scores.round(1)
+    result['anomaly_score'] = (-scores).round(1)  # Same as training: larger = more anomalous / worse road
     result['anomaly_type'] = [
         'Normal' if p == 1 else 'Anomaly' for p in predictions
     ]
