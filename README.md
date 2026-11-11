@@ -10,6 +10,8 @@ MLproduction: runs inference on new road measurement data and produces scored re
 GeoPackage generator: merges the processed results with Digiroad geospatial data and produces a GeoPackage file for map-based visualization (e.g. QGIS), enabling spatial analysis of road condition anomalies.
 Correlation analysis: Use Pearson correlation to calculate correlations between yhd_kiiht and other road metadata.
 
+![Pipeline overview: how training, production, the GeoPackage generator and correlation analysis pass data to each other](doc/pipeline_overview.svg)
+
 The project was developed as part of a data and AI project course at Tampere University of Applied Sciences (https://www.tuni.fi/fi/tutustu-meihin/tamk).
 
 ## Usage
@@ -18,8 +20,8 @@ The project was developed as part of a data and AI project course at Tampere Uni
 Digiroad file can be downloaded from [here](https://aineistot.vayla.fi/spa/ava/Tie/Digiroad/Aineistojulkaisut/latest/) <br>
 1. Digiroad for the whole of Finland (KokoSuomi_Digiroad_R_GeoPackage.GPKG) <br>
    Digiroad file needs to be extracted into [Root] -> [Data] -> [Digiroad] <br>
-3. Excel files with road condition data <br>
-   Excel files output by MLproduction_pipeline need to be moved from /output to [Root] -> [Data] -> [ML_Output]
+2. Excel files with road condition data <br>
+   GeoPackage generator reads the Excel file written by MLproduction from [Root] -> [output]; no files need to be moved
 
 
 
@@ -41,16 +43,16 @@ Road condition data needs to be placed in [Root] -> [SourceData]
 3. Activate virtual environment ```source venv/Scripts/activate```
 4. Install dependencies ```pip install -r MLmodel/requirements.txt```
    > MLproduction uses MLmodel dependencies
-6. Run production pipeline ```python -m MLproduction/production_pipeline.py```
+5. Run production pipeline from the repository root ```python -m MLproduction.production_pipeline```
 
 ### Launching Geopackage Generator
 1. Install python 3.13+
 2. Create virtual environment ```python -m venv venv```
 3. Activate virtual environment ```source venv/Scripts/activate```
 4. Install dependencies ```pip install -r GeopackageGenerator/requirements.txt```
-5. Launch jupyter ```jupyter notebook```
-6. Open geogenerator file
-7. Select Kernel -> venv
+5. Launch jupyter from the repository root ```jupyter notebook```
+6. Open GeopackageGenerator/GeoPackageGeneratorV3.4.ipynb
+7. Use the default kernel "Python 3 (ipykernel)" (it runs inside the activated venv)
 8. Run all
 
 ### Launching Correlation Analysis

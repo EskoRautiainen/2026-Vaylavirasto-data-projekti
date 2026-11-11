@@ -1,5 +1,6 @@
 pandas
 openpyxl
-scikit-learn
+scikit-learn==1.8.0  # must match the version scaler.pkl was trained with
 numpy
 joblib
+xlsxwriter

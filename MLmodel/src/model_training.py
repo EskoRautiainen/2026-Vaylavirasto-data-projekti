@@ -35,7 +35,6 @@ def step_06_model_training(
         raise ValueError("good_road_scaled cannot be empty")
 
     threshold_quantile = 0.99
-    regularization = 1e-6
 
     features = good_road_scaled.columns.tolist()
 
@@ -43,29 +42,15 @@ def step_06_model_training(
     print("Model training started. This may take a while, please wait...")
     print()
 
-    # Use only upward deviation from good baseline center.
-    X = good_road_scaled.loc[:, features].to_numpy(dtype=float, copy=False)
-    Z = np.clip(X, a_min=0.0, a_max=None)
-
-    mean_vec = Z.mean(axis=0)
-    cov = np.cov(Z, rowvar=False)
-    if np.ndim(cov) == 0:
-        cov = np.array([[float(cov)]], dtype=float)
-    cov = np.asarray(cov, dtype=float)
-    cov += np.eye(cov.shape[0]) * regularization
-    inv_cov = np.linalg.pinv(cov)
-
-    diff = Z - mean_vec
-    d2 = np.einsum("ij,jk,ik->i", diff, inv_cov, diff)
-    threshold = float(np.quantile(d2, threshold_quantile))
-
+    # Anomaly threshold: 99th percentile of the good-road distances (sum of squared upward deviations).
     model = BaselineDistanceModel(
-        mean_=mean_vec,
-        inv_cov_=inv_cov,
-        threshold_=threshold,
+        threshold_=0.0,
         feature_names_=features,
         threshold_quantile_=threshold_quantile,
     )
+    d2 = model.score_samples(good_road_scaled)
+    threshold = float(np.quantile(d2, threshold_quantile))
+    model.threshold_ = threshold
 
     # Training-only score summary on good-road baseline.
     good_road_scores = model.decision_function(good_road_scaled[features])
@@ -75,7 +60,6 @@ def step_06_model_training(
     print()
     print("Model parameters:")
     print(f"  Threshold quantile (baseline): {threshold_quantile}")
-    print(f"  Covariance regularization: {regularization}")
     print(f"  Distance threshold (d2): {threshold:.6f}")
     print("  Features:")
     for feature in features:

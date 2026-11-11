@@ -111,7 +111,7 @@ Reads Excel measurement files and extracts valid source data.
 ### Parameters
 - User does not give additional parameters → use /SourceData folder.
 - User gives folder in parameters: → use it.​
-- User gives a file name in parameters:​ → use its parent-folder.
+- User gives a file name in parameters:​ → use only that file.
 
 ### Example
 ```bash
@@ -180,8 +180,7 @@ Log in console how many rows were removed during each phase.
 ## Step 3 — Feature Engineering
 ### Purpose
 - Prepare features for machine learning.
-- Save relevant info to MLmodel/MLfiles/feature.metadata.json.
-- feature_metadata.json may help with troubleshooting.
+- Does not write MLmodel/MLfiles/feature_metadata.json; that file describes the trained model and is written only by the training pipeline.
 
 ### Selected Features
 - pys_kiiht
@@ -234,7 +233,7 @@ scaled = scaler.transform(features)
 ```text
 Field                   Description
 predictions             1 = normal, -1 = anomaly
-scores                  anomaly confidence score
+scores                  normality score (decision_function: larger = more normal)
 ```
 
 ### Console feedback
@@ -253,14 +252,15 @@ Combine metadata, ML outputs, and prioritization.
 ```text
 Column                      Description
 anomaly_prediction	        Raw model output
-anomaly_score	            Rounded anomaly score
+anomaly_score	            Rounded anomaly score, larger = worse road (same as training)
 anomaly_type	            Normal / Anomaly
 anomaly_category	        Priority category
 priority_score	            Numeric urgency
 ```
 
 ### Categorization
-Current implementation uses percentile-based ranking.
+Current implementation uses percentile-based ranking (shared/categories.py, also used by the training report).
+Categories are relative to the data in each run, not absolute quality classes.
 
 Percentile --- Category
 - 0–4%	Critical
@@ -274,7 +274,10 @@ Percentile --- Category
 Export production-ready results workbook.
 
 ### Features
-Green → Yellow → Red scales
+Excel allows 1,048,576 rows per sheet. Larger results are split into sheets Data, Data_2, Data_3, ...
+The GeoPackage generator and Correlations read all of them.
+
+Green → Yellow → Red scales use the min / median / max of the whole dataset, so colours are comparable across sheets.
 
 Colour-coded formatting is applied to: 
 - Ride-values
@@ -324,5 +327,3 @@ Changing feature selection requires retraining artifacts.
 
 ### Future Improvement Recommendations
 Add stable row ID's to dataframes. Merging different files can cause trouble in the future.
-
-Change data loading logic so that file name parameter loads only the chosen file. Currently it loads up the parent folder.

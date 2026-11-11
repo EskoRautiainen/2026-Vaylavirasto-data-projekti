@@ -208,21 +208,17 @@ __marimo__/
 
 
 # Geopackage
-.gpkg
+*.gpkg
 
 # Project outputs
 # MLfiles/
 # Allow only model and metadata files, ignore results
-MLfiles/anomaly_results.xlsx
+MLmodel/MLfiles/anomaly_results.xlsx
 
-#Ignores everything inside Data folder and output folder but keeps the folder itself
+# Ignores input data; SourceData/ keeps its .gitkeep, Data/ is created by the GeoPackage generator
 SourceData/*
-!Data/
-!Data/Digiroad
-!Data/ML_Output
-!Data/.gitkeep
-Data/Digiroad/*
-Data/ML_Output/*
+!SourceData/.gitkeep
+Data/
 
 
 output/*

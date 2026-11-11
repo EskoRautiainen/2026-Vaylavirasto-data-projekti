@@ -11,13 +11,17 @@ class BaselineDistanceModel:
     """
     One-class baseline distance model.
 
-    The model is fitted on good-road baseline data only. It uses robust-style
-    scaled features, clips negative values to zero (upward-only deviation), and
-    computes squared Mahalanobis distance from the baseline center.
+    Input is RobustScaler output fitted on good-road data, so every feature is measured in IQR units
+    from the good-road median. Only upward deviations (rougher than the baseline) count, and each
+    feature weighs the same:
+
+        d2 = sum over features of max(scaled_value, 0) ** 2
+
+    A road that is rougher on any feature always scores worse. (The previous version used a
+    Mahalanobis distance; siv_kiiht has zero spread among good roads, so its covariance
+    regularization 1e-6 became a weight of 1,000,000 and lateral acceleration dominated the score.)
     """
 
-    mean_: np.ndarray
-    inv_cov_: np.ndarray
     threshold_: float
     feature_names_: list[str]
     threshold_quantile_: float
@@ -31,10 +35,8 @@ class BaselineDistanceModel:
         return np.clip(X_arr, a_min=0.0, a_max=None)
 
     def score_samples(self, X: pd.DataFrame | np.ndarray) -> np.ndarray:
-        Z = self._prepare(X)
-        diff = Z - self.mean_
-        # Squared Mahalanobis distance per row
-        return np.einsum("ij,jk,ik->i", diff, self.inv_cov_, diff)
+        # Sum of squared upward deviations per row (larger = rougher road)
+        return np.square(self._prepare(X)).sum(axis=1)
 
     def decision_function(self, X: pd.DataFrame | np.ndarray) -> np.ndarray:
         # Larger = more normal, smaller = more anomalous (sklearn-like semantics)

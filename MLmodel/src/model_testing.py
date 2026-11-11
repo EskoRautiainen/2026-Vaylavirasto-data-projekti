@@ -7,23 +7,24 @@ import pandas as pd
 from openpyxl.formatting.rule import ColorScaleRule, FormulaRule
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
+from shared.categories import CATEGORY_LABELS, CATEGORY_UPPER_BOUNDS, categorize
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = REPO_ROOT / "MLmodel" / "MLfiles"
-QUALITY_BINS = [0.05, 0.20, 0.50, 0.80]
-QUALITY_LABELS = ["Excellent", "Good", "Fair", "Poor", "Critical"]
-PRIORITY_MAP = {
-    "Critical": 1,
-    "Poor": 2,
-    "Fair": 3,
-    "Good": 4,
-    "Excellent": 5,
-}
 PRIORITY_LABELS = ["Poor", "Critical"]
 MISMATCH_Q = 0.10
+EXCEL_MAX_DATA_ROWS = 1_048_575  # Excel's sheet limit is 1,048,576 rows, one of which is the header
+GRADIENT_COLUMNS = [
+    "pys_kiiht_raw",
+    "siv_kiiht_raw",
+    "nyo_kiiht_raw",
+    "anomaly_score",
+]
 
 
-def _apply_data_sheet_formatting(worksheet, data_columns: list[str], max_row: int) -> None:
+def _apply_data_sheet_formatting(
+    worksheet, data_columns: list[str], max_row: int, scales: dict[str, tuple[float, float, float]]
+) -> None:
     if max_row < 2:
         return
 
@@ -34,25 +35,23 @@ def _apply_data_sheet_formatting(worksheet, data_columns: list[str], max_row: in
     worksheet.freeze_panes = "E2"
     worksheet.auto_filter.ref = f"A1:{get_column_letter(len(data_columns))}{max_row}"
 
-    color_scale = ColorScaleRule(
-        start_type="min",
-        start_color="63BE7B",
-        mid_type="percentile",
-        mid_value=50,
-        mid_color="FFEB84",
-        end_type="max",
-        end_color="F8696B",
-    )
-    gradient_columns = [
-        "pys_kiiht_raw",
-        "siv_kiiht_raw",
-        "nyo_kiiht_raw",
-        "anomaly_score",
-    ]
     col_index = {name: idx + 1 for idx, name in enumerate(data_columns)}
-    for column_name in gradient_columns:
+    for column_name, (low, mid, high) in scales.items():
         if column_name not in col_index:
             continue
+        # Fixed values from the whole dataset (not Excel's per-sheet min/percentile/max),
+        # so colours mean the same on every Data sheet.
+        color_scale = ColorScaleRule(
+            start_type="num",
+            start_value=low,
+            start_color="63BE7B",
+            mid_type="num",
+            mid_value=mid,
+            mid_color="FFEB84",
+            end_type="num",
+            end_value=high,
+            end_color="F8696B",
+        )
         col_letter = get_column_letter(col_index[column_name])
         worksheet.conditional_formatting.add(
             f"{col_letter}2:{col_letter}{max_row}",
@@ -98,13 +97,13 @@ def _build_qa_summary(results: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
             ["pys_kiiht_raw", "siv_kiiht_raw", "nyo_kiiht_raw", "anomaly_score"]
         ]
         .mean()
-        .reindex(QUALITY_LABELS)
+        .reindex(CATEGORY_LABELS)
         .reset_index()
     )
     category_counts = (
         results["anomaly_category"]
         .value_counts()
-        .reindex(QUALITY_LABELS, fill_value=0)
+        .reindex(CATEGORY_LABELS, fill_value=0)
         .rename_axis("anomaly_category")
         .reset_index(name="count")
     )
@@ -130,9 +129,21 @@ def _write_excel_results(results: pd.DataFrame, results_path: Path) -> None:
 
     correlations, category_summary, top_worst = _build_qa_summary(data_export)
 
+    scales = {}
+    for column_name in GRADIENT_COLUMNS:
+        if column_name in data_export.columns and data_export[column_name].notna().any():
+            values = data_export[column_name]
+            scales[column_name] = (float(values.min()), float(values.median()), float(values.max()))
+
     results_path.parent.mkdir(exist_ok=True)
     with pd.ExcelWriter(results_path, engine="openpyxl") as writer:
-        data_export.to_excel(writer, sheet_name="Data", index=False)
+        # A sheet holds at most EXCEL_MAX_DATA_ROWS rows: split the data into Data, Data_2, Data_3, ...
+        data_sheets: list[tuple[str, int]] = []
+        for sheet_number, start in enumerate(range(0, len(data_export), EXCEL_MAX_DATA_ROWS), start=1):
+            chunk = data_export.iloc[start:start + EXCEL_MAX_DATA_ROWS]
+            sheet_name = "Data" if sheet_number == 1 else f"Data_{sheet_number}"
+            chunk.to_excel(writer, sheet_name=sheet_name, index=False)
+            data_sheets.append((sheet_name, len(chunk)))
 
         start_row = 0
         correlations.to_excel(writer, sheet_name="QA_summary", index=False, startrow=start_row)
@@ -141,10 +152,11 @@ def _write_excel_results(results: pd.DataFrame, results_path: Path) -> None:
         start_row += len(category_summary) + 3
         top_worst.to_excel(writer, sheet_name="QA_summary", index=False, startrow=start_row)
 
-        ws_data = writer.sheets["Data"]
+        for sheet_name, rows in data_sheets:
+            _apply_data_sheet_formatting(
+                writer.sheets[sheet_name], list(data_export.columns), rows + 1, scales
+            )
         ws_qa = writer.sheets["QA_summary"]
-        max_row = len(data_export) + 1
-        _apply_data_sheet_formatting(ws_data, list(data_export.columns), max_row)
         ws_qa.freeze_panes = "A2"
         for cell in ws_qa[1]:
             cell.font = Font(bold=True)
@@ -211,23 +223,9 @@ def step_07_model_testing(
     results["anomaly_type"] = results["anomaly_prediction"].map(
         {1: "Normal", -1: "Anomaly"}
     )
-    # Robust rank-based categorization avoids degenerate-bin failures when
-    # quantile boundaries are equal in discrete/quantized score distributions.
-    score_rank = results["anomaly_score_log"].rank(method="average", pct=True)
-    conditions = [
-        score_rank <= QUALITY_BINS[0],
-        score_rank <= QUALITY_BINS[1],
-        score_rank <= QUALITY_BINS[2],
-        score_rank <= QUALITY_BINS[3],
-    ]
-    choices = QUALITY_LABELS[:-1]
-    category_values = np.select(conditions, choices, default=QUALITY_LABELS[-1])
-    priority_category = pd.Categorical(
-        category_values,
-        categories=QUALITY_LABELS,
-        ordered=True,
-    )
-    results["anomaly_category"] = priority_category
+    # Same categories as production (shared): documented split Critical 4 % / Poor 4 % / Fair 32 % /
+    # Good 40 % / Excellent 20 %, rank-based so tied scores never produce degenerate bins.
+    results["anomaly_category"] = categorize(anomaly_scores)
 
     # Flag contradictory extremes for manual QA:
     # high acceleration but low anomaly score, or low acceleration but high anomaly score.
@@ -245,12 +243,6 @@ def step_07_model_testing(
         score_rank_for_mismatch >= (1.0 - MISMATCH_Q)
     )
     results["mismatch_flag"] = (high_accel_low_score | low_accel_high_score).astype(int)
-
-    # Keep quantile values for reporting visibility (not used for binning).
-    q05 = float(results["anomaly_score_log"].quantile(QUALITY_BINS[0]))
-    q20 = float(results["anomaly_score_log"].quantile(QUALITY_BINS[1]))
-    q50 = float(results["anomaly_score_log"].quantile(QUALITY_BINS[2]))
-    q80 = float(results["anomaly_score_log"].quantile(QUALITY_BINS[3]))
 
     anomaly_count = int((predictions == -1).sum())
     normal_count = int((predictions == 1).sum())
@@ -284,20 +276,19 @@ def step_07_model_testing(
     print(f"  Q95: {float(log_score_series.quantile(0.95)):.6f}")
     print(f"  Max: {float(log_score_series.max()):.6f}")
     print()
-    print("Road quality category thresholds (from anomaly_score_log quantiles):")
-    print(f"  <= Q05 ({q05:.6f}): Excellent")
-    print(f"  <= Q20 ({q20:.6f}): Good")
-    print(f"  <= Q50 ({q50:.6f}): Fair")
-    print(f"  <= Q80 ({q80:.6f}): Poor")
-    print(f"  >  Q80 ({q80:.6f}): Critical")
+    print("Road quality categories (share of roads ranked by anomaly_score, worst first):")
+    lower = 0.0
+    for category, upper in zip(CATEGORY_LABELS, CATEGORY_UPPER_BOUNDS):
+        print(f"  {category}: {lower:.0%}-{upper:.0%}")
+        lower = upper
     print()
     print("Priority category distribution:")
     category_counts = (
         results["anomaly_category"]
         .value_counts()
-        .reindex(QUALITY_LABELS, fill_value=0)
+        .reindex(CATEGORY_LABELS, fill_value=0)
     )
-    for category in QUALITY_LABELS:
+    for category in CATEGORY_LABELS:
         count = int(category_counts[category])
         share = (count / total_count) * 100
         print(f"  {category}: {count} ({share:.1f}%)")
