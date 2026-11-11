@@ -42,8 +42,9 @@ def load_data():
 
     print(f"\nReading file: {RESULTS_FILE.name}")
 
-    # Load Excel into a pandas dataframe
-    return pd.read_excel(RESULTS_FILE)
+    # Load every sheet: results over Excel's row limit are split into Data, Data_2, ...
+    sheets = pd.read_excel(RESULTS_FILE, sheet_name=None)
+    return pd.concat(sheets.values(), ignore_index=True)
 
 
 # --------------------------------------------------
