@@ -100,7 +100,7 @@ Main columns in `Data` include:
 - `pys_kiiht_raw`, `siv_kiiht_raw`, `nyo_kiiht_raw`
 - `anomaly_prediction`, `anomaly_type`
 - `anomaly_score`, `anomaly_score_log`
-- `anomaly_category` (`Excellent`, `Good`, `Fair`, `Poor`, `Critical`)
+- `anomaly_category` (`Critical` 4 %, `Poor` 4 %, `Fair` 32 %, `Good` 40 %, `Excellent` 20 %; same split as MLproduction, from `shared/categories.py`)
 - `mismatch_flag`
 
 ## How to Use `anomaly_score`
@@ -169,16 +169,10 @@ normality_score = model.decision_function(X_scaled) # larger = more normal
 anomaly_score = -normality_score                    # larger = worse
 anomaly_score_log = np.log1p(anomaly_score - anomaly_score.min())
 
-# 6) Rank-based categories
-score_rank = pd.Series(anomaly_score_log).rank(method="average", pct=True)
-conditions = [
-    score_rank <= 0.05,
-    score_rank <= 0.20,
-    score_rank <= 0.50,
-    score_rank <= 0.80,
-]
-choices = ["Excellent", "Good", "Fair", "Poor"]
-anomaly_category = np.select(conditions, choices, default="Critical")
+# 6) Rank-based categories, shared with MLproduction:
+#    Critical 4 % / Poor 4 % / Fair 32 % / Good 40 % / Excellent 20 % (worst first)
+from shared.categories import categorize
+anomaly_category = categorize(anomaly_score)
 
 # 7) Optional QA mismatch flag
 accel_sum = X_valid["pys_kiiht"] + X_valid["siv_kiiht"] + X_valid["nyo_kiiht"]

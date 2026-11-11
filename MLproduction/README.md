@@ -259,7 +259,8 @@ priority_score	            Numeric urgency
 ```
 
 ### Categorization
-Current implementation uses percentile-based ranking.
+Current implementation uses percentile-based ranking (shared/categories.py, also used by the training report).
+Categories are relative to the data in each run, not absolute quality classes.
 
 Percentile --- Category
 - 0–4%	Critical

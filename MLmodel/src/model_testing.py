@@ -7,18 +7,10 @@ import pandas as pd
 from openpyxl.formatting.rule import ColorScaleRule, FormulaRule
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
+from shared.categories import CATEGORY_LABELS, CATEGORY_UPPER_BOUNDS, categorize
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = REPO_ROOT / "MLmodel" / "MLfiles"
-QUALITY_BINS = [0.05, 0.20, 0.50, 0.80]
-QUALITY_LABELS = ["Excellent", "Good", "Fair", "Poor", "Critical"]
-PRIORITY_MAP = {
-    "Critical": 1,
-    "Poor": 2,
-    "Fair": 3,
-    "Good": 4,
-    "Excellent": 5,
-}
 PRIORITY_LABELS = ["Poor", "Critical"]
 MISMATCH_Q = 0.10
 EXCEL_MAX_DATA_ROWS = 1_048_575  # Excel's sheet limit is 1,048,576 rows, one of which is the header
@@ -105,13 +97,13 @@ def _build_qa_summary(results: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
             ["pys_kiiht_raw", "siv_kiiht_raw", "nyo_kiiht_raw", "anomaly_score"]
         ]
         .mean()
-        .reindex(QUALITY_LABELS)
+        .reindex(CATEGORY_LABELS)
         .reset_index()
     )
     category_counts = (
         results["anomaly_category"]
         .value_counts()
-        .reindex(QUALITY_LABELS, fill_value=0)
+        .reindex(CATEGORY_LABELS, fill_value=0)
         .rename_axis("anomaly_category")
         .reset_index(name="count")
     )
@@ -231,23 +223,9 @@ def step_07_model_testing(
     results["anomaly_type"] = results["anomaly_prediction"].map(
         {1: "Normal", -1: "Anomaly"}
     )
-    # Robust rank-based categorization avoids degenerate-bin failures when
-    # quantile boundaries are equal in discrete/quantized score distributions.
-    score_rank = results["anomaly_score_log"].rank(method="average", pct=True)
-    conditions = [
-        score_rank <= QUALITY_BINS[0],
-        score_rank <= QUALITY_BINS[1],
-        score_rank <= QUALITY_BINS[2],
-        score_rank <= QUALITY_BINS[3],
-    ]
-    choices = QUALITY_LABELS[:-1]
-    category_values = np.select(conditions, choices, default=QUALITY_LABELS[-1])
-    priority_category = pd.Categorical(
-        category_values,
-        categories=QUALITY_LABELS,
-        ordered=True,
-    )
-    results["anomaly_category"] = priority_category
+    # Same categories as production (shared): documented split Critical 4 % / Poor 4 % / Fair 32 % /
+    # Good 40 % / Excellent 20 %, rank-based so tied scores never produce degenerate bins.
+    results["anomaly_category"] = categorize(anomaly_scores)
 
     # Flag contradictory extremes for manual QA:
     # high acceleration but low anomaly score, or low acceleration but high anomaly score.
@@ -265,12 +243,6 @@ def step_07_model_testing(
         score_rank_for_mismatch >= (1.0 - MISMATCH_Q)
     )
     results["mismatch_flag"] = (high_accel_low_score | low_accel_high_score).astype(int)
-
-    # Keep quantile values for reporting visibility (not used for binning).
-    q05 = float(results["anomaly_score_log"].quantile(QUALITY_BINS[0]))
-    q20 = float(results["anomaly_score_log"].quantile(QUALITY_BINS[1]))
-    q50 = float(results["anomaly_score_log"].quantile(QUALITY_BINS[2]))
-    q80 = float(results["anomaly_score_log"].quantile(QUALITY_BINS[3]))
 
     anomaly_count = int((predictions == -1).sum())
     normal_count = int((predictions == 1).sum())
@@ -304,20 +276,19 @@ def step_07_model_testing(
     print(f"  Q95: {float(log_score_series.quantile(0.95)):.6f}")
     print(f"  Max: {float(log_score_series.max()):.6f}")
     print()
-    print("Road quality category thresholds (from anomaly_score_log quantiles):")
-    print(f"  <= Q05 ({q05:.6f}): Excellent")
-    print(f"  <= Q20 ({q20:.6f}): Good")
-    print(f"  <= Q50 ({q50:.6f}): Fair")
-    print(f"  <= Q80 ({q80:.6f}): Poor")
-    print(f"  >  Q80 ({q80:.6f}): Critical")
+    print("Road quality categories (share of roads ranked by anomaly_score, worst first):")
+    lower = 0.0
+    for category, upper in zip(CATEGORY_LABELS, CATEGORY_UPPER_BOUNDS):
+        print(f"  {category}: {lower:.0%}-{upper:.0%}")
+        lower = upper
     print()
     print("Priority category distribution:")
     category_counts = (
         results["anomaly_category"]
         .value_counts()
-        .reindex(QUALITY_LABELS, fill_value=0)
+        .reindex(CATEGORY_LABELS, fill_value=0)
     )
-    for category in QUALITY_LABELS:
+    for category in CATEGORY_LABELS:
         count = int(category_counts[category])
         share = (count / total_count) * 100
         print(f"  {category}: {count} ({share:.1f}%)")
