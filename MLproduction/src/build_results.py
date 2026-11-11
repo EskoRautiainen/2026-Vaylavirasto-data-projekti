@@ -29,7 +29,9 @@ def step_06_build_results(metadata, features, predictions, scores):
         'Normal' if p == 1 else 'Anomaly' for p in predictions
     ]
 
-    result['anomaly_category'] = categorize(scores)
+    # .array: assign by position. categorize() returns a 0..n-1 index, but result keeps the source row
+    # labels (with gaps where cleaning dropped rows), so label alignment put categories on the wrong rows.
+    result['anomaly_category'] = categorize(scores).array
 
     result['priority_score'] = result['anomaly_category'].map({ # Assign priority scores
         'Critical': 1,
