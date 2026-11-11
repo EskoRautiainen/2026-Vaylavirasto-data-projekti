@@ -180,8 +180,7 @@ Log in console how many rows were removed during each phase.
 ## Step 3 — Feature Engineering
 ### Purpose
 - Prepare features for machine learning.
-- Save relevant info to MLmodel/MLfiles/feature.metadata.json.
-- feature_metadata.json may help with troubleshooting.
+- Does not write MLmodel/MLfiles/feature_metadata.json; that file describes the trained model and is written only by the training pipeline.
 
 ### Selected Features
 - pys_kiiht

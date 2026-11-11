@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import pandas as pd
-
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-OUTPUT_DIR = REPO_ROOT / "MLmodel" / "MLfiles"
 
 
 # -------------------------
@@ -45,23 +39,5 @@ def step_03_engineer_features(dataframe: pd.DataFrame) -> pd.DataFrame:
     print(engineered_dataframe.head().to_string())
     print()
 
-    # Save feature metadata
-    feature_metadata = {
-        "pipeline_version": "0.1",
-        "features": selected_features,
-        "feature_count": len(selected_features),
-        "data_rows": len(engineered_dataframe),
-        "feature_engineering_date": pd.Timestamp.now().isoformat(),
-    }
-
-    # Create output directory if it doesn't exist
-    metadata_path = OUTPUT_DIR / "feature_metadata.json"
-    metadata_path.parent.mkdir(exist_ok=True)
-
-    # Save metadata
-    with open(metadata_path, "w", encoding="utf-8") as f:
-        json.dump(feature_metadata, f, indent=2)
-
-    print(f"Feature metadata saved to: {metadata_path}")
-
+    # Production must not write feature_metadata.json: it belongs to the trained model (MLmodel).
     return engineered_dataframe
