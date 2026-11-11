@@ -17,8 +17,7 @@ python MLmodel/ml_pipeline.py
 # Scan all Excel files under a directory
 python MLmodel/ml_pipeline.py SourceData
 
-# If a file path is given (or path does not resolve to an existing directory),
-# pipeline scans all Excel files in that path's parent directory
+# If a file path is given, only that Excel file is read
 python MLmodel/ml_pipeline.py SourceData/some_file.xlsx
 ```
 

@@ -111,7 +111,7 @@ Reads Excel measurement files and extracts valid source data.
 ### Parameters
 - User does not give additional parameters → use /SourceData folder.
 - User gives folder in parameters: → use it.​
-- User gives a file name in parameters:​ → use its parent-folder.
+- User gives a file name in parameters:​ → use only that file.
 
 ### Example
 ```bash
@@ -324,5 +324,3 @@ Changing feature selection requires retraining artifacts.
 
 ### Future Improvement Recommendations
 Add stable row ID's to dataframes. Merging different files can cause trouble in the future.
-
-Change data loading logic so that file name parameter loads only the chosen file. Currently it loads up the parent folder.

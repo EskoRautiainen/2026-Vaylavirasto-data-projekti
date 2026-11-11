@@ -34,15 +34,14 @@ OUTPUT_COLUMNS = [
 #   FILE DISCOVERY
 # ----------------------------------------------------------------------------------------------------
 def _discover_excel_files(anchor_path: Path) -> list[Path]: # Find ALL Excel files in a folder
-    if anchor_path.exists() and anchor_path.is_dir():
-        data_dir = anchor_path                              # If user gives folder -> use it
-    else:                                                   
-        data_dir = anchor_path.parent                       # If user gives file -> use parent folder
+    if anchor_path.is_file():                               # If user gives file -> use only that file
+        if anchor_path.suffix.lower() not in EXCEL_SUFFIXES:
+            raise ValueError(f"Not an Excel file (.xlsx/.xlsm): {anchor_path}")
+        return [anchor_path]
 
-    if not data_dir.exists() or not data_dir.is_dir():      # Check if folder exists
-        raise FileNotFoundError(
-            f"Data directory not found from input path: {anchor_path}"
-        )
+    if not anchor_path.is_dir():                            # Check if folder exists
+        raise FileNotFoundError(f"Input path not found: {anchor_path}")
+    data_dir = anchor_path                                  # If user gives folder -> use it
 
     excel_files = sorted(
         path
