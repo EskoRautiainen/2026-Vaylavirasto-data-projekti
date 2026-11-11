@@ -7,11 +7,16 @@ import pandas as pd
 def step_07_excel_colours(feature_df, output_path="./MLproduction/production_results_coloured.xlsx"):
     output_path = Path(output_path)
 
-    # Replace zeros 0.0 with 0.05. Don't want to divide by zero.
-    denominator = feature_df["yhd_kiiht"].replace(0, 0.05)
+    feature_df = feature_df.copy() # Prevents mutating original dataframe.
+
+    # yhd_kiiht is metadata and never went through data cleaning: it may hold comma decimals or text.
+    feature_df["yhd_kiiht"] = pd.to_numeric(
+        feature_df["yhd_kiiht"].astype(str).str.replace(",", ".", regex=False), errors="coerce"
+    )
+    # Ratio is undefined when yhd_kiiht is 0 or missing -> leave the cell empty (inf can't be written to Excel).
+    denominator = feature_df["yhd_kiiht"].where(feature_df["yhd_kiiht"] != 0)
 
     # Calculate ratios. See, which type of acceleration is most dominant.
-    feature_df = feature_df.copy() # Prevents mutating original dataframe.
     feature_df["pysty_vs_yhdistetty"] = (feature_df["pys_kiiht"] / denominator).round(3)
     feature_df["sivu_vs_yhdistetty"] = (feature_df["siv_kiiht"] / denominator).round(3)
     feature_df["nyökkimis_vs_yhdistetty"] = (feature_df["nyo_kiiht"] / denominator).round(3)
