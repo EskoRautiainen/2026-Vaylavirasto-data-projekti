@@ -48,9 +48,9 @@ Road condition data needs to be placed in [Root] -> [SourceData]
 2. Create virtual environment ```python -m venv venv```
 3. Activate virtual environment ```source venv/Scripts/activate```
 4. Install dependencies ```pip install -r GeopackageGenerator/requirements.txt```
-5. Launch jupyter ```jupyter notebook```
-6. Open geogenerator file
-7. Select Kernel -> venv
+5. Launch jupyter from the repository root ```jupyter notebook```
+6. Open GeopackageGenerator/GeoPackageGeneratorV3.4.ipynb
+7. Use the default kernel "Python 3 (ipykernel)" (it runs inside the activated venv)
 8. Run all
 
 ### Launching Correlation Analysis
