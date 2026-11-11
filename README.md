@@ -41,7 +41,7 @@ Road condition data needs to be placed in [Root] -> [SourceData]
 3. Activate virtual environment ```source venv/Scripts/activate```
 4. Install dependencies ```pip install -r MLmodel/requirements.txt```
    > MLproduction uses MLmodel dependencies
-6. Run production pipeline ```python -m MLproduction/production_pipeline.py```
+5. Run production pipeline from the repository root ```python -m MLproduction.production_pipeline```
 
 ### Launching Geopackage Generator
 1. Install python 3.13+
